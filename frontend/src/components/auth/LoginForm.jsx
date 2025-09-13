@@ -1,0 +1,114 @@
+import React, { useState } from 'react';
+import { BookOpen } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+
+const LoginForm = () => {
+  const { login } = useAuth();
+  const [credentials, setCredentials] = useState({ 
+    username: '', 
+    password: '', 
+    userType: 'student' 
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      const mockUser = {
+        id: 1,
+        name: credentials.username,
+        type: credentials.userType,
+        email: `${credentials.username}@school.edu`
+      };
+      login(mockUser);
+      setIsLoading(false);
+    }, 1500);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 flex items-center justify-center p-4">
+      <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 w-full max-w-md border border-white/20 shadow-2xl">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">EduAssess AI</h1>
+          <p className="text-white/70">Intelligent Learning Assessment</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-white/90 text-sm font-medium mb-2">Username</label>
+            <input
+              type="text"
+              value={credentials.username}
+              onChange={(e) => setCredentials({...credentials, username: e.target.value})}
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+              placeholder="Enter your username"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-white/90 text-sm font-medium mb-2">Password</label>
+            <input
+              type="password"
+              value={credentials.password}
+              onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-white/90 text-sm font-medium mb-2">I am a...</label>
+            <div className="flex gap-4">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  value="student"
+                  checked={credentials.userType === 'student'}
+                  onChange={(e) => setCredentials({...credentials, userType: e.target.value})}
+                  className="mr-2 text-blue-500"
+                />
+                <span className="text-white/90">Student</span>
+              </label>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  value="teacher"
+                  checked={credentials.userType === 'teacher'}
+                  onChange={(e) => setCredentials({...credentials, userType: e.target.value})}
+                  className="mr-2 text-blue-500"
+                />
+                <span className="text-white/90">Teacher</span>
+              </label>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold py-3 rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            ) : (
+              'Sign In'
+            )}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-white/60 text-sm">Demo credentials: any username/password</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LoginForm;

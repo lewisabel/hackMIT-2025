@@ -1,12 +1,13 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { AuthProvider } from './context/AuthContext';
+import AppContent from './components/AppContent';
 
-function App() {
+const App = () => {
   return (
-    <div>
-      Learn
-    </div>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
-}
+};
 
 export default App;
