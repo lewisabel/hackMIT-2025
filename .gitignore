@@ -268,3 +268,4 @@ deployment/
 # Keep important config examples
 !.env.example
 !config.example.js
+/generated/prisma
