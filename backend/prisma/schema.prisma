@@ -1,0 +1,270 @@
+// This is your Prisma schema file
+// Save this as: backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(STUDENT)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastLogin    DateTime? @map("last_login")
+  isActive     Boolean   @default(true) @map("is_active")
+
+  // Relations
+  student Student?
+  teacher Teacher?
+
+  @@index([email])
+  @@map("users")
+}
+
+model Student {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique @map("user_id")
+  firstName      String   @map("first_name")
+  lastName       String   @map("last_name")
+  studentId      String?  @unique @map("student_id")
+  gradeLevel     String?  @map("grade_level")
+  enrollmentDate DateTime @default(now()) @map("enrollment_date")
+
+  // Relations
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollments  Enrollment[]
+  aiSessions   AISession[]
+  assessments  Assessment[]
+  progress     LearningProgress[]
+
+  @@index([userId])
+  @@map("students")
+}
+
+model Teacher {
+  id         Int     @id @default(autoincrement())
+  userId     Int     @unique @map("user_id")
+  firstName  String  @map("first_name")
+  lastName   String  @map("last_name")
+  employeeId String? @unique @map("employee_id")
+  department String?
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classes Class[]
+
+  @@index([userId])
+  @@map("teachers")
+}
+
+// ==========================================
+// CLASSES AND ENROLLMENT
+// ==========================================
+
+model Class {
+  id           Int      @id @default(autoincrement())
+  classCode    String   @unique @map("class_code")
+  name         String
+  subject      String
+  description  String?
+  teacherId    Int      @map("teacher_id")
+  schoolName   String?  @map("school_name")
+  academicYear String?  @map("academic_year")
+  semester     String?
+  schedule     String? // e.g., "MWF 10:00-11:00"
+  roomNumber   String?  @map("room_number")
+  createdAt    DateTime @default(now()) @map("created_at")
+  isActive     Boolean  @default(true) @map("is_active")
+
+  // Relations
+  teacher     Teacher            @relation(fields: [teacherId], references: [id])
+  enrollments Enrollment[]
+  lessons     Lesson[]
+  progress    LearningProgress[]
+
+  @@index([teacherId])
+  @@map("classes")
+}
+
+model Enrollment {
+  id             Int              @id @default(autoincrement())
+  studentId      Int              @map("student_id")
+  classId        Int              @map("class_id")
+  enrollmentDate DateTime         @default(now()) @map("enrollment_date")
+  status         EnrollmentStatus @default(ACTIVE)
+  finalGrade     String?          @map("final_grade")
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId])
+  @@index([studentId])
+  @@index([classId])
+  @@map("enrollments")
+}
+
+// ==========================================
+// LESSONS AND LEARNING CONTENT
+// ==========================================
+
+model Lesson {
+  id                 Int       @id @default(autoincrement())
+  classId            Int       @map("class_id")
+  lessonNumber       Int?      @map("lesson_number")
+  title              String
+  description        String?
+  topicsCovered      String?   @map("topics_covered") // JSON array stored as string
+  learningObjectives String?   @map("learning_objectives") // JSON array stored as string
+  lessonDate         DateTime? @map("lesson_date")
+  materialsUrl       String?   @map("materials_url")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  class       Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  aiSessions  AISession[]
+  assessments Assessment[]
+
+  @@index([classId])
+  @@map("lessons")
+}
+
+// ==========================================
+// AI SESSIONS AND ASSESSMENTS
+// ==========================================
+
+model AISession {
+  id              Int           @id @default(autoincrement())
+  studentId       Int           @map("student_id")
+  lessonId        Int           @map("lesson_id")
+  sessionStart    DateTime      @default(now()) @map("session_start")
+  sessionEnd      DateTime?     @map("session_end")
+  durationMinutes Int?          @map("duration_minutes")
+  transcript      String?       // Full conversation transcript
+  summary         String?       // AI-generated summary
+  status          SessionStatus @default(IN_PROGRESS)
+
+  // Relations
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson     Lesson      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  assessment Assessment?
+
+  @@index([studentId])
+  @@index([lessonId])
+  @@map("ai_sessions")
+}
+
+model Assessment {
+  id                   Int                 @id @default(autoincrement())
+  sessionId            Int                 @unique @map("session_id")
+  studentId            Int                 @map("student_id")
+  lessonId             Int                 @map("lesson_id")
+  overallScore         Float?              @map("overall_score") // Stores 1-10 grade
+  understandingLevel   UnderstandingLevel? @map("understanding_level")
+  strengths            String?             // JSON array stored as string
+  weaknesses           String?             // JSON array stored as string
+  aiFeedback           String?             @map("ai_feedback")
+  recommendedResources String?             @map("recommended_resources") // JSON array stored as string
+  createdAt            DateTime            @default(now()) @map("created_at")
+
+  // Relations
+  session          AISession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student          Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson           Lesson            @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  topicAssessments TopicAssessment[]
+
+  @@index([studentId])
+  @@index([sessionId])
+  @@map("assessments")
+}
+
+model TopicAssessment {
+  id               Int              @id @default(autoincrement())
+  assessmentId     Int              @map("assessment_id")
+  topicName        String           @map("topic_name")
+  score            Float?
+  confidenceLevel  ConfidenceLevel? @map("confidence_level")
+  specificFeedback String?          @map("specific_feedback")
+
+  // Relations
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId])
+  @@map("topic_assessments")
+}
+
+// ==========================================
+// LEARNING PROGRESS TRACKING
+// ==========================================
+
+model LearningProgress {
+  id                   Int      @id @default(autoincrement())
+  studentId            Int      @map("student_id")
+  classId              Int      @map("class_id")
+  date                 DateTime @default(now())
+  averageUnderstanding Float?   @map("average_understanding")
+  topicsMastered       Int      @default(0) @map("topics_mastered")
+  totalTopics          Int      @default(0) @map("total_topics")
+  timeSpentMinutes     Int      @default(0) @map("time_spent_minutes")
+  streakDays           Int      @default(0) @map("streak_days")
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId, date])
+  @@index([studentId, classId])
+  @@map("learning_progress")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+
+  @@map("role")
+}
+
+enum EnrollmentStatus {
+  ACTIVE    @map("active")
+  DROPPED   @map("dropped")
+  COMPLETED @map("completed")
+
+  @@map("status")
+}
+
+enum SessionStatus {
+  IN_PROGRESS @map("in_progress")
+  COMPLETED   @map("completed")
+  ABANDONED   @map("abandoned")
+
+  @@map("session_status")
+}
+
+enum UnderstandingLevel {
+  NOVICE     @map("novice")
+  DEVELOPING @map("developing")
+  PROFICIENT @map("proficient")
+  ADVANCED   @map("advanced")
+
+  @@map("understanding_level")
+}
+
+enum ConfidenceLevel {
+  LOW    @map("low")
+  MEDIUM @map("medium")
+  HIGH   @map("high")
+
+  @@map("confidence_level")
+}

@@ -26,6 +26,18 @@ out/
 .next/
 .nuxt/
 
+# Build artifacts and compiled files
+*.d.ts
+*.js.map
+*.css.map
+*.wasm
+*.mjs
+runtime/
+client/
+server/
+static/
+chunks/
+
 # Environment variables
 .env
 .env.local
@@ -52,6 +64,9 @@ out/
 *.bak
 backup/
 backups/
+
+# Prisma generated files
+**/generated/
 
 # ==========================================
 # Logs and Debug Files
@@ -172,6 +187,11 @@ $RECYCLE.BIN/
 .eslintcache
 .stylelintcache
 
+# Next.js specific
+.next/
+out/
+next-env.d.ts
+
 # ==========================================
 # Backend Specific
 # ==========================================
@@ -185,6 +205,20 @@ uploads/
 public/uploads/
 temp/
 tmp/
+
+# ==========================================
+# WebAssembly and Compiled Assets
+# ==========================================
+
+# WebAssembly files
+*.wasm
+wasm-*
+*_bg.wasm
+
+# Query engines (Prisma, etc.)
+query_engine*
+*query_engine*
+*libquery_engine*
 
 # ==========================================
 # Miscellaneous
@@ -268,3 +302,11 @@ deployment/
 # Keep important config examples
 !.env.example
 !config.example.js
+/generated/prisma
+
+# ==========================================
+# Supabase
+# ==========================================
+
+# Supabase
+.supabase/
