@@ -92,6 +92,10 @@ const StudentPage = () => {
       return;
     }
 
+    setFinalTranscript('');
+    setInterimTranscript('');
+    lastFinalIndexRef.current = 0;
+
     setTranscript('');
     setFeedback(null);
     setIsRecording(true);
@@ -100,7 +104,7 @@ const StudentPage = () => {
       recognitionRef.current?.start();
     } catch (err) {
       console.error('Speech recognition start error:', err);
-    }
+  }
   };
 
 
