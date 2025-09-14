@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GraduationCap } from 'lucide-react';
 import GradeTopicSelector from '../components/student/GradeTopicSelector';
 import Recorder from '../components/student/Recorder';
@@ -13,33 +13,118 @@ const StudentPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  const [finalTranscript, setFinalTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const lastFinalIndexRef = useRef(0); // track last processed result index
+
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Your browser does not support Speech Recognition.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    
+    recognition.onresult = (event) => {
+      let interim = '';
+
+      for (let i = lastFinalIndexRef.current; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          setFinalTranscript((prev) => prev + result[0].transcript + ' ');
+          lastFinalIndexRef.current = i + 1; // move past this final result
+        } else {
+          interim += result[0].transcript;
+        }
+      }
+
+      setInterimTranscript(interim);
+    };
+
+
+    // recognition.onresult = (event) => {
+    //   let interim = '';
+
+    //   for (let i = event.resultIndex; i < event.results.length; i++) {
+    //     const transcript = event.results[i][0].transcript;
+    //     if (event.results[i].isFinal) {
+    //       setFinalTranscript((prev) => prev + transcript + ' ');
+    //     } else {
+    //       interim += transcript;
+    //     }
+    //   }
+
+    //   setInterimTranscript(interim);
+    // };
+
+
+    // recognition.onresult = (event) => {
+    //   let finalTranscript = '';
+    //   let interimTranscript = '';
+
+    //   for (let i = event.resultIndex; i < event.results.length; i++) {
+    //     const text = event.results[i][0].transcript;
+    //     if (event.results[i].isFinal) {
+    //       finalTranscript += text + ' ';
+    //     } else {
+    //       interimTranscript += text + ' ';
+    //     }
+    //   }
+
+    //   setTranscript((prev) => prev + finalTranscript + interimTranscript);
+    // };
+
+    recognition.onerror = (e) => console.error('Recognition error:', e);
+
+    recognitionRef.current = recognition;
+  }, []);
+
   const handleStartRecording = () => {
     if (!selectedGrade || !selectedTopic) {
       alert('Please select both your grade level and a topic first!');
       return;
     }
-    setIsRecording(true);
+
     setTranscript('');
     setFeedback(null);
-    
-    // Simulate grade-appropriate transcription
-    const gradeExamples = {
-      "K-2": "Animals need homes to stay safe. Birds live in nests in trees. Fish live in water...",
-      "3-5": "Plants need sunlight and water to make their own food. The leaves are green because...", 
-      "6-8": "Newton's first law says that objects at rest stay at rest unless a force acts on them...",
-      "9-12": "According to Newton's first law of motion, an object in uniform motion tends to remain in uniform motion unless acted upon by an external force..."
-    };
-    
-    setTimeout(() => {
-      setTranscript(gradeExamples[selectedGrade] || gradeExamples["6-8"]);
-    }, 3000);
+    setIsRecording(true);
+
+    try {
+      recognitionRef.current?.start();
+    } catch (err) {
+      console.error('Speech recognition start error:', err);
+    }
   };
 
-  const handleStopRecording = () => {
+
+  const handleStopRecording = async () => {
     setIsRecording(false);
     setIsAnalyzing(true);
-    
-    // Simulate AI analysis with grade-appropriate feedback
+
+    // Stop recognition
+    recognitionRef.current?.stop();
+
+    // Send final transcript to backend
+    try {
+      const response = await fetch('http://localhost:5000/save-transcript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: finalTranscript })
+      });
+      const data = await response.json();
+      console.log('Saved transcript:', data.fileName);
+    } catch (err) {
+      console.error('Failed to save transcript:', err);
+    }
+
+    // Simulate feedback
     setTimeout(() => {
       setFeedback(mockFeedbackByGrade[selectedGrade] || mockFeedbackByGrade["6-8"]);
       setIsAnalyzing(false);
@@ -77,8 +162,8 @@ const StudentPage = () => {
             </div>
 
             {/* Recording Component */}
-            <Recorder 
-              transcript={transcript}
+            <Recorder
+              transcript={finalTranscript + interimTranscript}
               isRecording={isRecording}
               onStartRecording={handleStartRecording}
               onStopRecording={handleStopRecording}
@@ -99,22 +184,7 @@ const StudentPage = () => {
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
               <h3 className="font-semibold text-gray-800 mb-4">How it Works</h3>
               <div className="space-y-3 text-sm text-gray-600">
-                <div className="flex items-start space-x-3">
-                  <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-semibold">1</span>
-                  <span>Tell us what grade you're in</span>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-semibold">2</span>
-                  <span>Pick a topic you want to be assessed on</span>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-semibold">3</span>
-                  <span>Record yourself explaining what you know</span>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="w-6 h-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-semibold">4</span>
-                  <span>Get personalized feedback for your grade level</span>
-                </div>
+                {/* steps list... */}
               </div>
             </div>
 
