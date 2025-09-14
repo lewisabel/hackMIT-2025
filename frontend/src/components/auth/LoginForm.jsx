@@ -87,6 +87,17 @@ const LoginForm = () => {
                 />
                 <span className="text-white/90">Teacher</span>
               </label>
+              
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  value="parent"
+                  checked={credentials.userType === 'parent'}
+                  onChange={(e) => setCredentials({...credentials, userType: e.target.value})}
+                  className="mr-2 text-blue-500"
+                />
+                <span className="text-white/90">Parent</span>
+              </label>
             </div>
           </div>
 

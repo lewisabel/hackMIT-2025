@@ -5,6 +5,7 @@ import Header from './common/Header';
 import LoginForm from './auth/LoginForm';
 import StudentPage from '../pages/StudentPage';
 import TeacherPage from '../pages/TeacherPage';
+import ParentPage from '../pages/ParentPage';
 
 const AppContent = () => {
   const { user, isLoading } = useAuth();
@@ -17,12 +18,26 @@ const AppContent = () => {
     return <LoginForm />;
   }
 
-  return (
-    <div className="min-h-screen">
-      <Header />
-      {user.type === 'student' ? <StudentPage /> : <TeacherPage />}
-    </div>
-  );
+  const renderPage = () => {
+  switch (user.type) {
+    case 'student':
+      return <StudentPage />;
+    case 'teacher':
+      return <TeacherPage />;
+    case 'parent':
+      return <ParentPage />;
+    default:
+      return <div>Unknown role</div>;
+  }
+};
+
+return (
+  <div className="min-h-screen">
+    <Header />
+    {renderPage()}
+  </div>
+);
+
 };
 
 export default AppContent;
