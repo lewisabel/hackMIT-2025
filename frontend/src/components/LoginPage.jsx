@@ -11,11 +11,16 @@ function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { error } = await signIn(email, password);
+    console.log('Attempting login with:', email); // Don't log password
     
-    if (error) {
-      setError(error);
+    const result = await signIn(email, password);
+    console.log('Login result:', result); // See what's returned
+    
+    if (result.error) {
+      console.error('Login error:', result.error);
+      setError(result.error);
     } else {
+      console.log('Login successful');
       navigate('/dashboard');
     }
   };

@@ -32,6 +32,8 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async (email, password) => {
     try {
+      console.log('AuthContext: Starting login request...');
+      
       const response = await fetch('http://localhost:3001/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -39,23 +41,27 @@ export const AuthProvider = ({ children }) => {
       });
 
       const data = await response.json();
+      console.log('AuthContext: Login response:', data);
       
-      if (!response.ok) {
-        throw new Error(data.error);
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Login failed');
       }
 
-      localStorage.setItem('access_token', data.session.access_token);
+      // FIXED: Use the correct property names from your backend response
+      localStorage.setItem('access_token', data.user.accessToken);
       setUser(data.user);
       
-      return { data, error: null };
+      console.log('AuthContext: Login successful, user set');
+      return { data: data.user, error: null };
     } catch (error) {
+      console.error('AuthContext: Login error:', error);
       return { data: null, error: error.message };
     }
   };
 
   const signUp = async (userData) => {
     try {
-        console.log("signUp userData:", userData);
+      console.log("signUp userData:", userData);
 
       const response = await fetch('http://localhost:3001/api/auth/register', {
         method: 'POST',
@@ -65,8 +71,8 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
       
-      if (!response.ok) {
-        throw new Error(data.error);
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Registration failed');
       }
       
       return { data, error: null };
