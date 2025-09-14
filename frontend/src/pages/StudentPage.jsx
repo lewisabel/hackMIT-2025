@@ -108,25 +108,28 @@ const StudentPage = () => {
     setIsRecording(false);
     setIsAnalyzing(true);
 
-    // Stop recognition
     recognitionRef.current?.stop();
 
-    // Send final transcript to backend
-    try {
-      const response = await fetch('http://localhost:5000/save-transcript', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript: finalTranscript })
-      });
-      const data = await response.json();
-      console.log('Saved transcript:', data.fileName);
-    } catch (err) {
-      console.error('Failed to save transcript:', err);
+    // Save transcript to backend
+    if (finalTranscript.trim() !== '') {
+      try {
+        const response = await fetch('http://localhost:5000/save-transcript', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: finalTranscript })   // <-- changed here
+        });
+        const data = await response.json();
+        console.log('Saved transcript:', data.fileName);
+      } catch (err) {
+        console.error('Failed to save transcript:', err);
+      }
+    } else {
+      console.warn('Transcript is empty, not saving.');
     }
 
     // Simulate feedback
     setTimeout(() => {
-      setFeedback(mockFeedbackByGrade[selectedGrade] || mockFeedbackByGrade["6-8"]);
+      setFeedback(mockFeedbackByGrade[selectedGrade] || mockFeedbackByGrade['6-8']);
       setIsAnalyzing(false);
     }, 3000);
   };

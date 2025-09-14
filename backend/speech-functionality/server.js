@@ -8,8 +8,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Ensure `transcribe/` exists
-const folderPath = path.join(__dirname, "transcribe");
+// Ensure `transcripts/` exists
+const folderPath = path.join(__dirname, "transcripts");
 if (!fs.existsSync(folderPath)) {
   fs.mkdirSync(folderPath);
 }
@@ -26,16 +26,16 @@ app.post("/save-transcript", (req, res) => {
   fs.writeFile(filePath, text, (err) => {
     if (err) {
       console.error("Error saving transcript:", err);
-      return res.status(500).send("Failed to save transcript.");
+      return res.status(500).json({ error: "Failed to save transcript." });
     }
-    res.send("Transcript saved successfully!");
+    res.json({ message: "Transcript saved successfully!", fileName: path.basename(filePath) });
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Transcripts will be saved to: ${transcriptsDir}`);
+  console.log(`Transcripts will be saved to: ${folderPath}`);
   console.log("Using direct Google Speech API (no FFmpeg conversion)");
 });
 
