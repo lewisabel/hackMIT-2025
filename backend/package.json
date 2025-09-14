@@ -22,8 +22,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^6.16.1",
-    "@supabase/supabase-js": "^2.57.4",
+    "@google-cloud/speech": "^7.2.0",
     "@prisma/client": "^6.16.1",
     "@supabase/supabase-js": "^2.57.4",
     "bcrypt": "^6.0.0",
