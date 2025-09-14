@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
+const studentRoutes = require('./routes/student');
+const teacherRoutes = require('./routes/teacher');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -35,32 +37,30 @@ app.get('/', (req, res) => {
         register: 'POST /api/auth/register',
         login: 'POST /api/auth/login',
         debug: 'GET /api/auth/quick-debug'
+      },
+      student: {
+        dashboard: 'GET /api/student/dashboard',
+        assessments: 'GET /api/student/assessments',
+        progress: 'GET /api/student/progress',
+        classes: 'GET /api/student/classes'
+      },
+      teacher: {
+        dashboard: 'GET /api/teacher/dashboard',
+        classes: 'GET /api/teacher/classes',
+        students: 'GET /api/teacher/students',
+        assessments: 'GET /api/teacher/assessments'
       }
     }
   });
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
 
-// API test route
-app.get('/api/test', (req, res) => {
-  res.json({ 
-    message: 'API is working!', 
-    timestamp: new Date().toISOString() 
-  });
-});
-
-// Use auth routes
+// Use routes
 app.use('/api/auth', authRoutes);
+app.use('/api/student', studentRoutes);
+app.use('/api/teacher', teacherRoutes);
 
-// 404 handler for unmatched routes - FIXED
+// 404 handler for unmatched routes
 app.use((req, res) => {
   console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
@@ -73,7 +73,15 @@ app.use((req, res) => {
         '/health',
         '/api/test',
         '/api/auth/test',
-        '/api/auth/quick-debug'
+        '/api/auth/quick-debug',
+        '/api/student/dashboard',
+        '/api/student/assessments',
+        '/api/student/progress',
+        '/api/student/classes',
+        '/api/teacher/dashboard',
+        '/api/teacher/classes',
+        '/api/teacher/students',
+        '/api/teacher/assessments'
       ],
       POST: [
         '/api/auth/register',
@@ -106,13 +114,20 @@ app.listen(PORT, () => {
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('=================================');
   console.log('📋 Available endpoints:');
-  console.log(`   GET  http://localhost:${PORT}/`);
-  console.log(`   GET  http://localhost:${PORT}/health`);
-  console.log(`   GET  http://localhost:${PORT}/api/test`);
+  console.log('   AUTH:');
   console.log(`   GET  http://localhost:${PORT}/api/auth/test`);
-  console.log(`   GET  http://localhost:${PORT}/api/auth/quick-debug`);
   console.log(`   POST http://localhost:${PORT}/api/auth/register`);
   console.log(`   POST http://localhost:${PORT}/api/auth/login`);
+  console.log('   STUDENT:');
+  console.log(`   GET  http://localhost:${PORT}/api/student/dashboard`);
+  console.log(`   GET  http://localhost:${PORT}/api/student/assessments`);
+  console.log(`   GET  http://localhost:${PORT}/api/student/progress`);
+  console.log(`   GET  http://localhost:${PORT}/api/student/classes`);
+  console.log('   TEACHER:');
+  console.log(`   GET  http://localhost:${PORT}/api/teacher/dashboard`);
+  console.log(`   GET  http://localhost:${PORT}/api/teacher/classes`);
+  console.log(`   GET  http://localhost:${PORT}/api/teacher/students`);
+  console.log(`   GET  http://localhost:${PORT}/api/teacher/assessments`);
   console.log('=================================');
 });
 

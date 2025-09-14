@@ -2,7 +2,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext({});
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -21,10 +27,16 @@ export const AuthProvider = ({ children }) => {
         });
         if (response.ok) {
           const data = await response.json();
+          console.log('CheckUser: Setting user from token:', data.user);
           setUser(data.user);
+        } else {
+          // Token is invalid, remove it
+          console.log('CheckUser: Invalid token, removing');
+          localStorage.removeItem('access_token');
         }
       } catch (error) {
         console.error('Error checking user:', error);
+        localStorage.removeItem('access_token');
       }
     }
     setLoading(false);
@@ -47,11 +59,12 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || 'Login failed');
       }
 
-      // FIXED: Use the correct property names from your backend response
       localStorage.setItem('access_token', data.user.accessToken);
       setUser(data.user);
       
-      console.log('AuthContext: Login successful, user set');
+      console.log('AuthContext: Login successful, user set to:', data.user);
+      console.log('AuthContext: User role:', data.user.role);
+      
       return { data: data.user, error: null };
     } catch (error) {
       console.error('AuthContext: Login error:', error);
@@ -82,12 +95,29 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = () => {
+    console.log('AuthContext: Signing out user');
     localStorage.removeItem('access_token');
     setUser(null);
   };
 
+  // Legacy method names for backward compatibility
+  const login = signIn;
+  const logout = signOut;
+
+  // Legacy property name for backward compatibility
+  const isLoading = loading;
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading,
+      isLoading,
+      signIn, 
+      signUp, 
+      signOut,
+      login,
+      logout
+    }}>
       {children}
     </AuthContext.Provider>
   );

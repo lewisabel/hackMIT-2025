@@ -1,6 +1,6 @@
 import React from 'react';
 import { BookOpen, User, LogOut } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Header = () => {
   const { user, logout } = useAuth();

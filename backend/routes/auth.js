@@ -276,49 +276,51 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Test endpoint
-router.get('/test', (req, res) => {
-  console.log('Test endpoint called');
-  res.json({ message: 'Auth routes working!' });
-});
 
-// Add this to your routes/auth.js file
-router.get('/quick-debug', async (req, res) => {
-  console.log('=== QUICK DEBUG TEST ===');
-  
+// GET /api/auth/me - Get current user info
+router.get('/me', async (req, res) => {
   try {
-    // Test 1: Prisma connection
-    console.log('Testing Prisma connection...');
-    const userCount = await prisma.user.count();
-    console.log('✅ Prisma connected, user count:', userCount);
-    
-    // Test 2: Supabase client
-    console.log('Testing Supabase client...');
-    if (!supabase) {
-      throw new Error('Supabase client not initialized');
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authorization token required'
+      });
     }
-    console.log('✅ Supabase client exists');
-    
-    // Test 3: Environment variables
-    console.log('Checking environment variables...');
-    console.log('SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'EXISTS' : 'MISSING');
-    console.log('SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'EXISTS' : 'MISSING');
-    
-    res.json({ 
-      success: true, 
-      prismaUserCount: userCount,
-      supabaseClient: 'initialized',
-      envVars: {
-        supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        serviceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        student: true,
+        teacher: true
       }
     });
-    
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        student: user.student,
+        teacher: user.teacher
+      }
+    });
   } catch (error) {
-    console.error('❌ Debug test failed:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    console.error('Get user error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token'
     });
   }
 });
