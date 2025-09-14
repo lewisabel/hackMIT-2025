@@ -11,6 +11,6 @@ const App = () => {
       </AuthProvider>
     </BrowserRouter>
   );
-};
+}
 
 export default App;
