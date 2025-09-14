@@ -1,0 +1,260 @@
+// backend/scripts/enroll-students-teacher.js
+
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+async function enrollStudentsWithTeacher() {
+  try {
+    console.log('Starting enrollment process...');
+
+    // First, try to find an existing teacher
+    let teacher = await prisma.teacher.findFirst({
+      include: { 
+        user: { select: { email: true } },
+        classes: true 
+      }
+    });
+
+    if (!teacher) {
+      console.log('No teachers found. Looking for orphaned teacher users...');
+      
+      // Find users with TEACHER role who don't have a teacher record
+      const orphanedTeachers = await prisma.user.findMany({
+        where: {
+          role: 'TEACHER',
+          teacher: null
+        }
+      });
+
+      if (orphanedTeachers.length > 0) {
+        console.log(`Found ${orphanedTeachers.length} orphaned teacher users. Using the first one...`);
+        const targetUser = orphanedTeachers[0];
+        
+        teacher = await prisma.teacher.create({
+          data: {
+            userId: targetUser.id,
+            firstName: 'Sarah',
+            lastName: 'Johnson',
+            employeeId: `EMP${Date.now()}`,
+            department: 'Mathematics'
+          },
+          include: { 
+            user: { select: { email: true } },
+            classes: true 
+          }
+        });
+        
+        console.log(`Created teacher record for user: ${targetUser.email}`);
+      } else {
+        console.log('No orphaned teacher users found. Creating new user and teacher...');
+        
+        // Create a completely new user and teacher
+        const teacherUser = await prisma.user.create({
+          data: {
+            email: `teacher${Date.now()}@school.edu`,
+            passwordHash: '$2b$10$hashedpassword123',
+            role: 'TEACHER',
+            lastLogin: new Date(),
+            isActive: true
+          }
+        });
+
+        teacher = await prisma.teacher.create({
+          data: {
+            userId: teacherUser.id,
+            firstName: 'Sarah',
+            lastName: 'Johnson',
+            employeeId: `EMP${Date.now()}`,
+            department: 'Mathematics'
+          },
+          include: { 
+            user: { select: { email: true } },
+            classes: true 
+          }
+        });
+        
+        console.log(`Created new teacher: ${teacherUser.email}`);
+      }
+    } else {
+      console.log(`Found existing teacher: ${teacher.user.email} (ID: ${teacher.id})`);
+    }
+
+    // Get or create classes for this teacher
+    let classes = await prisma.class.findMany({
+      where: { teacherId: teacher.id }
+    });
+
+    if (classes.length === 0) {
+      console.log('No classes found for teacher. Creating classes...');
+      
+      const classData = [
+        {
+          classCode: `MATH${Date.now()}`,
+          name: 'Algebra I',
+          subject: 'Mathematics',
+          teacherId: teacher.id,
+          description: 'Introduction to algebraic concepts',
+          schoolName: 'MIT Academy',
+          academicYear: '2024-2025',
+          semester: 'Fall',
+          schedule: 'MWF 10:00-11:00',
+          roomNumber: 'Room 101'
+        },
+        {
+          classCode: `GEOM${Date.now()}`,
+          name: 'Geometry',
+          subject: 'Mathematics', 
+          teacherId: teacher.id,
+          description: 'Study of shapes and spatial relationships',
+          schoolName: 'MIT Academy',
+          academicYear: '2024-2025',
+          semester: 'Fall',
+          schedule: 'TTh 2:00-3:30',
+          roomNumber: 'Room 102'
+        },
+        {
+          classCode: `CALC${Date.now()}`,
+          name: 'Pre-Calculus',
+          subject: 'Mathematics',
+          teacherId: teacher.id,
+          description: 'Preparation for calculus',
+          schoolName: 'MIT Academy',
+          academicYear: '2024-2025',
+          semester: 'Fall',
+          schedule: 'MWF 2:00-3:30',
+          roomNumber: 'Room 103'
+        }
+      ];
+
+      for (const classInfo of classData) {
+        const newClass = await prisma.class.create({
+          data: classInfo
+        });
+        classes.push(newClass);
+        console.log(`Created class: ${newClass.name} (ID: ${newClass.id})`);
+      }
+    } else {
+      console.log(`Found ${classes.length} existing classes for teacher`);
+    }
+
+    // Get students (from your seeded data)
+    const students = await prisma.student.findMany({
+      take: 15, // Get 15 students
+      include: { user: { select: { email: true, isActive: true } } },
+      where: { user: { isActive: true } }
+    });
+
+    console.log(`Found ${students.length} active students to enroll`);
+
+    // Enroll students in classes
+    let enrollmentCount = 0;
+    let studentsPerClass = Math.ceil(students.length / classes.length);
+    
+    for (let i = 0; i < students.length; i++) {
+      const student = students[i];
+      
+      // Each student gets enrolled in 2-3 classes
+      const numClassesToEnroll = Math.min(2 + Math.floor(Math.random() * 2), classes.length);
+      const shuffledClasses = [...classes].sort(() => 0.5 - Math.random()).slice(0, numClassesToEnroll);
+      
+      for (const classItem of shuffledClasses) {
+        // Check if already enrolled
+        const existingEnrollment = await prisma.enrollment.findUnique({
+          where: {
+            studentId_classId: {
+              studentId: student.id,
+              classId: classItem.id
+            }
+          }
+        });
+
+        if (!existingEnrollment) {
+          await prisma.enrollment.create({
+            data: {
+              studentId: student.id,
+              classId: classItem.id,
+              enrollmentDate: new Date(),
+              status: 'ACTIVE'
+            }
+          });
+          
+          console.log(`Enrolled ${student.firstName} ${student.lastName} in ${classItem.name}`);
+          enrollmentCount++;
+        }
+      }
+    }
+
+    console.log(`\nEnrollment complete! Total new enrollments: ${enrollmentCount}`);
+
+    // Create some lessons for each class
+    console.log('\nCreating sample lessons...');
+    for (const classItem of classes) {
+      const lessonCount = await prisma.lesson.count({
+        where: { classId: classItem.id }
+      });
+      
+      if (lessonCount === 0) {
+        for (let i = 1; i <= 5; i++) {
+          await prisma.lesson.create({
+            data: {
+              classId: classItem.id,
+              lessonNumber: i,
+              title: `${classItem.name} - Lesson ${i}`,
+              description: `Learning objectives for lesson ${i}`,
+              topicsCovered: JSON.stringify([`Topic ${i}A`, `Topic ${i}B`]),
+              learningObjectives: JSON.stringify([
+                `Understand concept ${i}`,
+                `Apply knowledge practically`,
+                `Solve related problems`
+              ]),
+              lessonDate: new Date(Date.now() + i * 24 * 60 * 60 * 1000) // Spread over 5 days
+            }
+          });
+        }
+        console.log(`Created 5 lessons for ${classItem.name}`);
+      }
+    }
+
+    // Verify results
+    const finalCount = await prisma.student.count({
+      where: {
+        enrollments: {
+          some: {
+            class: {
+              teacherId: teacher.id
+            }
+          }
+        }
+      }
+    });
+
+    const classSummary = await Promise.all(
+      classes.map(async (cls) => {
+        const studentCount = await prisma.enrollment.count({
+          where: { classId: cls.id, status: 'ACTIVE' }
+        });
+        return { name: cls.name, students: studentCount, id: cls.id };
+      })
+    );
+
+    console.log('\n=== ENROLLMENT SUMMARY ===');
+    console.log(`Teacher ID: ${teacher.id}`);
+    console.log(`Teacher Name: ${teacher.firstName} ${teacher.lastName}`);
+    console.log(`Teacher Email: ${teacher.user.email}`);
+    console.log(`Total Students: ${finalCount}`);
+    console.log(`Classes:`);
+    classSummary.forEach(cls => {
+      console.log(`  - ${cls.name}: ${cls.students} students (Class ID: ${cls.id})`);
+    });
+
+    console.log(`\n🎯 Use Teacher ID ${teacher.id} in your dashboard API calls!`);
+    console.log(`Example: http://localhost:3001/api/teacher/${teacher.id}/stats`);
+
+  } catch (error) {
+    console.error('Error during enrollment:', error);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+enrollStudentsWithTeacher();

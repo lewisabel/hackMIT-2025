@@ -9,7 +9,11 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    'http://localhost:5173', // Add Vite default port
+    'http://localhost:3001'  // Add current backend port for testing
+  ],
   credentials: true
 }));
 app.use(express.json());
@@ -31,7 +35,6 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: {
       health: '/health',
-      api: '/api/test',
       auth: {
         test: '/api/auth/test',
         register: 'POST /api/auth/register',
@@ -46,6 +49,9 @@ app.get('/', (req, res) => {
       },
       teacher: {
         dashboard: 'GET /api/teacher/dashboard',
+        stats: 'GET /api/teacher/:id/stats',
+        classPerformance: 'GET /api/teacher/:id/classes/performance',
+        studentsAttention: 'GET /api/teacher/:id/students/attention',
         classes: 'GET /api/teacher/classes',
         students: 'GET /api/teacher/students',
         assessments: 'GET /api/teacher/assessments'
@@ -54,6 +60,14 @@ app.get('/', (req, res) => {
   });
 });
 
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Use routes
 app.use('/api/auth', authRoutes);
@@ -71,14 +85,16 @@ app.use((req, res) => {
       GET: [
         '/',
         '/health',
-        '/api/test',
         '/api/auth/test',
         '/api/auth/quick-debug',
         '/api/student/dashboard',
-        '/api/student/assessments',
+        '/api/student/assessments', 
         '/api/student/progress',
         '/api/student/classes',
         '/api/teacher/dashboard',
+        '/api/teacher/:id/stats',
+        '/api/teacher/:id/classes/performance',
+        '/api/teacher/:id/students/attention',
         '/api/teacher/classes',
         '/api/teacher/students',
         '/api/teacher/assessments'
@@ -125,6 +141,9 @@ app.listen(PORT, () => {
   console.log(`   GET  http://localhost:${PORT}/api/student/classes`);
   console.log('   TEACHER:');
   console.log(`   GET  http://localhost:${PORT}/api/teacher/dashboard`);
+  console.log(`   GET  http://localhost:${PORT}/api/teacher/{id}/stats`);
+  console.log(`   GET  http://localhost:${PORT}/api/teacher/{id}/classes/performance`);
+  console.log(`   GET  http://localhost:${PORT}/api/teacher/{id}/students/attention`);
   console.log(`   GET  http://localhost:${PORT}/api/teacher/classes`);
   console.log(`   GET  http://localhost:${PORT}/api/teacher/students`);
   console.log(`   GET  http://localhost:${PORT}/api/teacher/assessments`);

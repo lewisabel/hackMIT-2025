@@ -1,0 +1,216 @@
+// backend/scripts/fix-teacher-record.js
+
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+async function fixTeacherRecord() {
+  try {
+    console.log('Checking for orphaned teacher users...');
+
+    // Find all users with TEACHER role who don't have a teacher record
+    const orphanedTeachers = await prisma.user.findMany({
+      where: {
+        role: 'TEACHER',
+        teacher: null // This means no teacher record exists
+      },
+      select: {
+        id: true,
+        email: true,
+        createdAt: true
+      }
+    });
+
+    console.log(`Found ${orphanedTeachers.length} orphaned teacher users`);
+
+    if (orphanedTeachers.length === 0) {
+      console.log('No orphaned teacher users found. All good!');
+      return;
+    }
+
+    // Show the orphaned users
+    orphanedTeachers.forEach((user, index) => {
+      console.log(`${index + 1}. User ID: ${user.id}, Email: ${user.email}`);
+    });
+
+    // Focus on user ID 59 if it exists, otherwise use the first orphaned teacher
+    let targetUser = orphanedTeachers.find(user => user.id === 59);
+    
+    if (!targetUser) {
+      console.log('User ID 59 not found in orphaned teachers list');
+      console.log('Let me check if user 59 exists and what role they have...');
+      
+      const user59 = await prisma.user.findUnique({
+        where: { id: 59 },
+        include: { teacher: true }
+      });
+      
+      if (!user59) {
+        console.log('User ID 59 does not exist. Using first available orphaned teacher...');
+        targetUser = orphanedTeachers[0];
+      } else {
+        console.log('User 59 details:', {
+          id: user59.id,
+          email: user59.email,
+          role: user59.role,
+          hasTeacherRecord: !!user59.teacher
+        });
+        
+        if (user59.teacher) {
+          console.log('User 59 already has a teacher record:', user59.teacher);
+          targetUser = user59.teacher;
+        } else {
+          if (user59.role !== 'TEACHER') {
+            console.log(`User 59 has role ${user59.role}, not TEACHER. Updating role first...`);
+            await prisma.user.update({
+              where: { id: 59 },
+              data: { role: 'TEACHER' }
+            });
+            console.log('Updated user 59 role to TEACHER');
+          }
+          targetUser = user59;
+        }
+      }
+    }
+
+    if (!targetUser) {
+      console.log('No suitable user found. Creating a new teacher user...');
+      const newUser = await prisma.user.create({
+        data: {
+          email: `teacher${Date.now()}@school.edu`,
+          passwordHash: '$2b$10$hashedpassword123',
+          role: 'TEACHER',
+          lastLogin: new Date(),
+          isActive: true
+        }
+      });
+      targetUser = newUser;
+    }
+
+    // Create teacher record for the target user
+    console.log(`\nCreating teacher record for user ID ${targetUser.id}...`);
+    
+    const newTeacher = await prisma.teacher.create({
+      data: {
+        userId: targetUser.id,
+        firstName: 'Sarah',
+        lastName: 'Johnson', 
+        employeeId: `EMP${Date.now()}`, // Generate unique employee ID
+        department: 'Mathematics'
+      }
+    });
+
+    console.log('Created teacher record:', newTeacher);
+
+    // Now create some classes for this teacher
+    console.log('\nCreating classes for teacher...');
+    
+    const classData = [
+      {
+        classCode: `MATH${Date.now()}`,
+        name: 'Algebra I',
+        subject: 'Mathematics',
+        teacherId: newTeacher.id,
+        description: 'Introduction to algebraic concepts',
+        schoolName: 'MIT Academy', 
+        academicYear: '2024-2025',
+        semester: 'Fall',
+        schedule: 'MWF 10:00-11:00',
+        roomNumber: 'Room 101'
+      },
+      {
+        classCode: `GEOM${Date.now()}`,
+        name: 'Geometry',
+        subject: 'Mathematics',
+        teacherId: newTeacher.id,
+        description: 'Study of shapes and spatial relationships',
+        schoolName: 'MIT Academy',
+        academicYear: '2024-2025', 
+        semester: 'Fall',
+        schedule: 'TTh 2:00-3:30',
+        roomNumber: 'Room 102'
+      }
+    ];
+
+    const createdClasses = [];
+    for (const classInfo of classData) {
+      const newClass = await prisma.class.create({
+        data: classInfo
+      });
+      createdClasses.push(newClass);
+      console.log(`Created class: ${newClass.name} (ID: ${newClass.id})`);
+    }
+
+    // Enroll some existing students in these classes
+    console.log('\nEnrolling students in classes...');
+    
+    const students = await prisma.student.findMany({
+      take: 10,
+      include: { user: { select: { isActive: true } } },
+      where: { user: { isActive: true } }
+    });
+
+    console.log(`Found ${students.length} active students to enroll`);
+
+    let enrollmentCount = 0;
+    for (const student of students.slice(0, 8)) { // Take first 8 students
+      for (const classItem of createdClasses) {
+        // Check if already enrolled
+        const existing = await prisma.enrollment.findUnique({
+          where: {
+            studentId_classId: {
+              studentId: student.id,
+              classId: classItem.id
+            }
+          }
+        });
+
+        if (!existing) {
+          await prisma.enrollment.create({
+            data: {
+              studentId: student.id,
+              classId: classItem.id,
+              enrollmentDate: new Date(),
+              status: 'ACTIVE'
+            }
+          });
+          console.log(`Enrolled ${student.firstName} ${student.lastName} in ${classItem.name}`);
+          enrollmentCount++;
+        }
+      }
+    }
+
+    console.log(`\nEnrolled ${enrollmentCount} student-class combinations`);
+
+    // Final verification
+    const finalTeacher = await prisma.teacher.findUnique({
+      where: { id: newTeacher.id },
+      include: {
+        user: { select: { email: true } },
+        classes: {
+          include: {
+            _count: { select: { enrollments: true } }
+          }
+        }
+      }
+    });
+
+    console.log('\n=== SETUP COMPLETE ===');
+    console.log(`Teacher ID: ${finalTeacher.id}`);
+    console.log(`Teacher Name: ${finalTeacher.firstName} ${finalTeacher.lastName}`);
+    console.log(`User Email: ${finalTeacher.user.email}`);
+    console.log(`Classes: ${finalTeacher.classes.length}`);
+    
+    finalTeacher.classes.forEach(cls => {
+      console.log(`  - ${cls.name}: ${cls._count.enrollments} students`);
+    });
+
+    console.log(`\n🎯 Use Teacher ID ${finalTeacher.id} in your dashboard!`);
+
+  } catch (error) {
+    console.error('Error fixing teacher record:', error);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+fixTeacherRecord();
