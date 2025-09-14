@@ -8,10 +8,18 @@ import { getLatestTranscript, getSocraticFeedback } from "../api/claude";
 
 const StudentPage = () => {
   const [lastTranscriptFile, setLastTranscriptFile] = useState(null);
-  const [selectedGrade, setSelectedGrade] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState(null);
   const [selectedTopic, setSelectedTopic] = useState('');
   const [transcript, setTranscript] = useState('');
-  const [feedback, setFeedback] = useState({ suggestions: [] });
+  const [feedback, setFeedback] = useState({ 
+  suggestions: [],
+  strengths: [],
+  weaknesses: [],
+  concept: '',
+  assessment: '',
+  score: null,
+  recommendation: ''
+});
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -81,7 +89,6 @@ const StudentPage = () => {
   recognitionRef.current?.stop();
 
   try {
-    // 1. Get the latest transcript from backend folder
     const { transcript } = await getLatestTranscript();
     console.log(transcript);
 
@@ -93,7 +100,6 @@ const StudentPage = () => {
 
     setTranscript(transcript);
 
-    // 2. Send to Claude API for feedback
     const aiFeedback = await getSocraticFeedback(
       selectedGrade,
       selectedTopic,
@@ -101,9 +107,32 @@ const StudentPage = () => {
     );
     console.log("Claude response:", aiFeedback);
     
-    setFeedback(aiFeedback);
+    // Ensure the feedback has the expected structure
+    const structuredFeedback = {
+      concept: aiFeedback.concept || '',
+      assessment: aiFeedback.assessment || '',
+      score: aiFeedback.score || null,
+      strengths: Array.isArray(aiFeedback.strengths) ? aiFeedback.strengths : 
+                 (aiFeedback.strengths ? [aiFeedback.strengths] : []),
+      weaknesses: Array.isArray(aiFeedback.weaknesses) ? aiFeedback.weaknesses : 
+                  (aiFeedback.weaknesses ? [aiFeedback.weaknesses] : []),
+      recommendation: aiFeedback.recommendation || '',
+      suggestions: aiFeedback.suggestions || []  // Add this if your component uses it
+    };
+    
+    setFeedback(structuredFeedback);
   } catch (err) {
     console.error("Error analyzing transcript:", err);
+    // Set empty feedback on error
+    setFeedback({ 
+      suggestions: [],
+      strengths: [],
+      weaknesses: [],
+      concept: '',
+      assessment: '',
+      score: null,
+      recommendation: ''
+    });
   } finally {
     setIsAnalyzing(false);
   }

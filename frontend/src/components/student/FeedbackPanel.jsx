@@ -1,3 +1,4 @@
+// components/student/FeedbackPanel.js
 import React from 'react';
 import { Award, TrendingUp, Lightbulb, GraduationCap } from 'lucide-react';
 import { getScoreColor, getGradeLevelIcon } from '../../utils/helpers';
@@ -21,6 +22,11 @@ const FeedbackPanel = ({ feedback, isLoading, gradeLevel }) => {
 
   if (!feedback) return null;
 
+  // Ensure suggestions is always an array
+  const suggestions = Array.isArray(feedback.suggestions) 
+    ? feedback.suggestions 
+    : (feedback.recommendation ? [feedback.recommendation] : ["Keep practicing!"]);
+
   const getStrengthsTitle = (grade) => {
     return grade === "K-2" ? "Great Job!" : "Strengths";
   };
@@ -33,6 +39,10 @@ const FeedbackPanel = ({ feedback, isLoading, gradeLevel }) => {
     return grade === "K-2" ? "Fun Things to Try" : "Next Steps";
   };
 
+  // Convert score (1-5) to percentage if needed
+  const scorePercentage = feedback.score ? 
+    (feedback.score > 5 ? feedback.score : feedback.score * 20) : 0;
+
   return (
     <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 space-y-6">
       <div className="flex items-center justify-between">
@@ -42,8 +52,8 @@ const FeedbackPanel = ({ feedback, isLoading, gradeLevel }) => {
             {getGradeLevelIcon(gradeLevel)} Grade {gradeLevel}
           </span>
         </div>
-        <div className={`px-4 py-2 rounded-full font-bold text-lg ${getScoreColor(feedback.score)}`}>
-          {feedback.score}%
+        <div className={`px-4 py-2 rounded-full font-bold text-lg ${getScoreColor(scorePercentage)}`}>
+          {scorePercentage}%
         </div>
       </div>
 
@@ -55,7 +65,9 @@ const FeedbackPanel = ({ feedback, isLoading, gradeLevel }) => {
               <Award className="w-5 h-5 mr-2" />
               {getStrengthsTitle(gradeLevel)}
             </h4>
-            <p className="text-green-700 text-sm leading-relaxed">{feedback.strengths}</p>
+            <p className="text-green-700 text-sm leading-relaxed">
+              {feedback.strengths || "You're doing great!"}
+            </p>
           </div>
 
           {/* Areas for Improvement */}
@@ -64,7 +76,9 @@ const FeedbackPanel = ({ feedback, isLoading, gradeLevel }) => {
               <TrendingUp className="w-5 h-5 mr-2" />
               {getImprovementTitle(gradeLevel)}
             </h4>
-            <p className="text-orange-700 text-sm leading-relaxed">{feedback.gaps}</p>
+            <p className="text-orange-700 text-sm leading-relaxed">
+              {feedback.gaps || feedback.weaknesses || "Keep practicing to improve!"}
+            </p>
           </div>
         </div>
 
@@ -76,7 +90,7 @@ const FeedbackPanel = ({ feedback, isLoading, gradeLevel }) => {
               {getNextStepsTitle(gradeLevel)}
             </h4>
             <ul className="space-y-2">
-              {feedback.suggestions.map((suggestion, index) => (
+              {suggestions.map((suggestion, index) => (
                 <li key={index} className="flex items-start space-x-2 text-sm text-blue-700">
                   <span className="w-5 h-5 bg-blue-200 rounded-full flex items-center justify-center text-xs font-semibold text-blue-800 mt-0.5">
                     {index + 1}
@@ -88,13 +102,15 @@ const FeedbackPanel = ({ feedback, isLoading, gradeLevel }) => {
           </div>
 
           {/* Encouragement */}
-          {feedback.encouragement && (
+          {(feedback.encouragement || feedback.assessment) && (
             <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
               <h4 className="font-semibold text-purple-800 mb-2 flex items-center">
                 <span className="text-lg mr-2">💪</span>
                 Keep Going!
               </h4>
-              <p className="text-purple-700 text-sm leading-relaxed">{feedback.encouragement}</p>
+              <p className="text-purple-700 text-sm leading-relaxed">
+                {feedback.encouragement || feedback.assessment}
+              </p>
             </div>
           )}
         </div>

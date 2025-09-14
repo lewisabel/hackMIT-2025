@@ -8,6 +8,9 @@ from claude_utils import (
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
+from fastapi import FastAPI
+from pydantic import BaseModel
+from claude_utils import socratic_feedback
 
 app = FastAPI()
 
@@ -32,11 +35,8 @@ app.add_middleware(
 #React will send the grade, topic,
 #Claude will be recalled to return the weaknesses and stregnths of the student with suggested next steps 
 
-from fastapi import FastAPI
-from pydantic import BaseModel
-from claude_utils import socratic_feedback
 
-app = FastAPI()
+
 
 class TurnRequest(BaseModel):
     grade: int  #student's grade level
