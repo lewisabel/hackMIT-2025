@@ -6,6 +6,25 @@ from claude_utils import (
 
 )
 
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
+
+app = FastAPI()
+
+# Allow frontend origin
+origins = [
+    "http://localhost:3000",
+    "http://localhost:5000",    # React dev server
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,       # or ["*"] for all origins (not recommended for production)
+    allow_credentials=True,
+    allow_methods=["*"],         # GET, POST, etc.
+    allow_headers=["*"],
+)
+
 
 #This is going to be the main brain where we include the functions that will call claude
 #React is going to send the grade, topic, and transcript that the student user inputs 

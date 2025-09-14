@@ -32,6 +32,36 @@ app.post("/save-transcript", (req, res) => {
   });
 });
 
+app.get("/api/latest-transcript", (req, res) => {
+  const folderPath = path.join(__dirname, "transcripts");
+
+  fs.readdir(folderPath, (err, files) => {
+    if (err) {
+      console.error("Error reading transcripts folder:", err);
+      return res.status(500).json({ error: "Failed to read transcripts" });
+    }
+
+    // Filter only .txt files and sort by modified time descending
+    const txtFiles = files
+      .filter(f => f.endsWith(".txt"))
+      .map(f => ({
+        name: f,
+        time: fs.statSync(path.join(folderPath, f)).mtime.getTime()
+      }))
+      .sort((a, b) => b.time - a.time);
+
+    if (txtFiles.length === 0) {
+      return res.status(404).json({ error: "No transcripts found" });
+    }
+
+    const latestFile = txtFiles[0].name;
+    const filePath = path.join(folderPath, latestFile);
+    const transcript = fs.readFileSync(filePath, "utf-8");
+
+    res.json({ fileName: latestFile, transcript });
+  });
+});
+
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
@@ -65,3 +95,44 @@ process.on('SIGTERM', () => {
   console.log('Shutting down server...');
   process.exit(0);
 });
+
+
+;
+const router = express.Router();
+
+const transcriptsDir = path.join(__dirname, "../transcripts");
+
+// Utility: get the newest transcript file
+function getLatestTranscriptFile() {
+  const files = fs.readdirSync(transcriptsDir)
+    .filter(f => f.endsWith(".txt"))
+    .map(f => ({
+      name: f,
+      time: fs.statSync(path.join(transcriptsDir, f)).mtime.getTime(),
+    }))
+    .sort((a, b) => b.time - a.time); // newest first
+
+  return files.length > 0 ? files[0].name : null;
+}
+
+// API: return contents of latest transcript
+router.get("/latest-transcript", (req, res) => {
+  try {
+    const latestFile = getLatestTranscriptFile();
+    if (!latestFile) {
+      return res.status(404).json({ error: "No transcripts found" });
+    }
+
+    const content = fs.readFileSync(
+      path.join(transcriptsDir, latestFile),
+      "utf8"
+    );
+
+    res.json({ fileName: latestFile, transcript: content });
+  } catch (err) {
+    console.error("Error reading latest transcript:", err);
+    res.status(500).json({ error: "Failed to read transcript" });
+  }
+});
+
+module.exports = router;

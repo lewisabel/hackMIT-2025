@@ -4,12 +4,14 @@ import GradeTopicSelector from '../components/student/GradeTopicSelector';
 import Recorder from '../components/student/Recorder';
 import FeedbackPanel from '../components/student/FeedbackPanel';
 import { mockFeedbackByGrade } from '../mock/sampleData';
+import { getLatestTranscript, getSocraticFeedback } from "../api/claude";
 
 const StudentPage = () => {
+  const [lastTranscriptFile, setLastTranscriptFile] = useState(null);
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
   const [transcript, setTranscript] = useState('');
-  const [feedback, setFeedback] = useState(null);
+  const [feedback, setFeedback] = useState({ suggestions: [] });
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -49,38 +51,7 @@ const StudentPage = () => {
     };
 
 
-    // recognition.onresult = (event) => {
-    //   let interim = '';
-
-    //   for (let i = event.resultIndex; i < event.results.length; i++) {
-    //     const transcript = event.results[i][0].transcript;
-    //     if (event.results[i].isFinal) {
-    //       setFinalTranscript((prev) => prev + transcript + ' ');
-    //     } else {
-    //       interim += transcript;
-    //     }
-    //   }
-
-    //   setInterimTranscript(interim);
-    // };
-
-
-    // recognition.onresult = (event) => {
-    //   let finalTranscript = '';
-    //   let interimTranscript = '';
-
-    //   for (let i = event.resultIndex; i < event.results.length; i++) {
-    //     const text = event.results[i][0].transcript;
-    //     if (event.results[i].isFinal) {
-    //       finalTranscript += text + ' ';
-    //     } else {
-    //       interimTranscript += text + ' ';
-    //     }
-    //   }
-
-    //   setTranscript((prev) => prev + finalTranscript + interimTranscript);
-    // };
-
+    
     recognition.onerror = (e) => console.error('Recognition error:', e);
 
     recognitionRef.current = recognition;
@@ -105,34 +76,41 @@ const StudentPage = () => {
 
 
   const handleStopRecording = async () => {
-    setIsRecording(false);
-    setIsAnalyzing(true);
+  setIsRecording(false);
+  setIsAnalyzing(true);
+  recognitionRef.current?.stop();
 
-    recognitionRef.current?.stop();
+  try {
+    // 1. Get the latest transcript from backend folder
+    const { transcript } = await getLatestTranscript();
+    console.log(transcript);
 
-    // Save transcript to backend
-    if (finalTranscript.trim() !== '') {
-      try {
-        const response = await fetch('http://localhost:5000/save-transcript', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: finalTranscript })   // <-- changed here
-        });
-        const data = await response.json();
-        console.log('Saved transcript:', data.fileName);
-      } catch (err) {
-        console.error('Failed to save transcript:', err);
-      }
-    } else {
-      console.warn('Transcript is empty, not saving.');
+    if (!transcript) {
+      console.warn("No transcript found");
+      setIsAnalyzing(false);
+      return;
     }
 
-    // Simulate feedback
-    setTimeout(() => {
-      setFeedback(mockFeedbackByGrade[selectedGrade] || mockFeedbackByGrade['6-8']);
-      setIsAnalyzing(false);
-    }, 3000);
-  };
+    setTranscript(transcript);
+
+    // 2. Send to Claude API for feedback
+    const aiFeedback = await getSocraticFeedback(
+      selectedGrade,
+      selectedTopic,
+      transcript
+    );
+    console.log("Claude response:", aiFeedback);
+    
+    setFeedback(aiFeedback);
+  } catch (err) {
+    console.error("Error analyzing transcript:", err);
+  } finally {
+    setIsAnalyzing(false);
+  }
+};
+
+
+        
 
   const getGradeFocusText = (grade) => {
     const focusTexts = {
